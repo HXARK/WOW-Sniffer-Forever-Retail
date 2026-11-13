@@ -1,4 +1,5 @@
-# HXARK Sniffer                                     Discord : https://discord.gg/P9RWZQBQkZ
+# HXARK Sniffer                                     
+Discord : https://discord.gg/P9RWZQBQkZ
 
 WoW Retail packet capture for Windows. Detects the network interface and saves PKT files for [WowPacketParser](https://github.com/TrinityCore/WowPacketParser).
 
