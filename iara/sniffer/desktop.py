@@ -5,10 +5,11 @@ import queue
 import threading
 import tkinter as tk
 from tkinter import ttk,filedialog
-from .updates import apply,fetch,default_store
+from .updates import apply,fetch,default_store,safe_store
 from .trust import PUBLIC_KEY,CATALOG_URL,APP_VERSION
 from .location import load as load_location, save as save_location
 from . import theme
+from . import storage
 from .capture_files import capture_destination
 from .capture_library import migrate_legacy
 from .prerequisites import inspect_support, download_installer, launch_installer, setup_failure
@@ -19,8 +20,12 @@ def start(*,smoke_test=False):
     root=tk.Tk();root.title('HXARK Sniffer');root.geometry('600x350');root.minsize(540,340)
     if smoke_test:root.withdraw()
     family=theme.apply(root)
-    folder=default_store().parent;captures=folder/'captures';captures.mkdir(parents=True,exist_ok=True)
-    dumps=folder/'dumps';dumps.mkdir(parents=True,exist_ok=True)
+    folder=safe_store(default_store().parent)
+    storage_problem=False
+    try:storage_root=storage.load(folder)
+    except (OSError,ValueError,TypeError):storage_root=folder;storage_problem=True
+    captures=storage_root/'captures';dumps=storage_root/'dumps'
+    pending_root=None;phase='starting'
     events=queue.Queue();stop=threading.Event();running=False;closing=False;setting_up=False
     wow=load_location(folder) or Path(r'C:\Program Files (x86)\World of Warcraft\_retail_\Wow.exe')
     status=tk.StringVar(value='Starting…')
@@ -44,17 +49,19 @@ def start(*,smoke_test=False):
         for label in (state_label,detail_label,result_label):label.configure(wraplength=max(180,event.width-42))
     card.bind('<Configure>',resize_card)
     bar=ttk.Frame(panel);bar.pack(fill='x')
-    ttk.Label(bar,text=APP_VERSION+' · Saved on this PC',style='Muted.TLabel',font=(family,9)).pack(side='left')
+    ttk.Label(bar,text=APP_VERSION,style='Muted.TLabel',font=(family,9)).pack(side='left')
     def open_captures():
         try:os.startfile(str(capture_destination(captures, dumps=dumps)))
         except (OSError,ValueError):
             result_text.set('Could not open captures. Your files remain saved on this PC.')
     ttk.Button(bar,text='Open captures',style='Primary.TButton',command=open_captures).pack(side='right')
+    folder_button=ttk.Button(bar,text='Change folder')
+    folder_button.pack(side='left',padx=(14,0))
     recovery=ttk.Button(bar,text='Locate WoW')
     setup_button=ttk.Button(card,text='Install capture support',style='Primary.TButton')
     if smoke_test:
         root.update_idletasks()
-        result={'ui_initialized':True,'controls':['Open captures'],
+        result={'ui_initialized':True,'controls':['Open captures','Change folder'],
                 'capture_started':False,'network_used':False,
                 'automatic_capture':True,'theme':'hxark-dark','brand_icon_loaded':bool(root._brand_mark),
                 'background':root.cget('background'),'first_run_setup':True}
@@ -62,6 +69,12 @@ def start(*,smoke_test=False):
     def launch():
         nonlocal running
         if running or closing:return
+        try:
+            if storage_problem:raise ValueError('invalid_capture_folder')
+            storage.prepare(storage_root)
+        except (OSError,ValueError):
+            status.set('Capture folder unavailable')
+            detail.set('Connect your drive or choose another folder with Change folder.');return
         if not wow.is_file():
             status.set('WoW not found');detail.set('Select Wow.exe once.');recovery.pack(side='left');return
         recovery.pack_forget();running=True;stop.clear()
@@ -125,11 +138,44 @@ def start(*,smoke_test=False):
                 status.set('Location not saved');detail.set('Select an existing Wow.exe in a local folder.');return
             check_support()
     recovery.configure(command=locate)
+    def apply_folder(value):
+        nonlocal storage_root,captures,dumps,storage_problem
+        try:
+            storage_root=storage.save(folder,value)
+        except (OSError,ValueError,TypeError):
+            status.set('Folder not saved')
+            detail.set('Choose an available folder that allows capture files to be saved.');return
+        captures=storage_root/'captures';dumps=storage_root/'dumps';storage_problem=False
+        result_text.set('Capture folder changed. Existing files stay in their original folder.')
+        check_support()
+    def choose_folder():
+        nonlocal pending_root
+        if closing or setting_up or pending_root is not None:return
+        if running and phase not in ('waiting','network_wait'):return
+        value=filedialog.askdirectory(title='Capture folder',initialdir=str(storage_root if storage_root.is_dir() else folder),mustexist=True)
+        if not value:return
+        if running:
+            # The game may have opened while the folder dialog was visible.
+            from .windows_inventory import find_process
+            try:find_process(wow)
+            except ValueError:pass
+            except OSError:
+                result_text.set('Close WoW before changing the capture folder.');return
+            else:
+                result_text.set('Close WoW before changing the capture folder.');return
+            if phase not in ('waiting','network_wait'):
+                result_text.set('Close WoW before changing the capture folder.');return
+            pending_root=Path(value);stop.set()
+            status.set('Changing capture folder…');detail.set('Finishing the idle capture.')
+        else:apply_folder(Path(value))
+    folder_button.configure(command=choose_folder)
     def poll():
-        nonlocal running,setting_up
+        nonlocal running,setting_up,pending_root,phase
         try:
             while True:
                 event=events.get_nowait();state=event['state']
+                if pending_root is not None and state!='finished':continue
+                phase=state
                 if state=='support_checked':
                     setting_up=False
                     if closing:root.destroy();return
@@ -159,6 +205,8 @@ def start(*,smoke_test=False):
                 elif state=='finished':
                     running=False
                     if closing:root.destroy();return
+                    if pending_root is not None:
+                        value=pending_root;pending_root=None;apply_folder(value)
                 elif state=='error':
                     state_label.configure(foreground=theme.DANGER)
                     status.set('Needs attention');detail.set(event['message'])
@@ -181,6 +229,8 @@ def start(*,smoke_test=False):
                         detail.set('The capture driver reported dropped packets. Saved files are kept.')
                     elif 'unsupported_game_connection' in event.get('errors', []):
                         detail.set('An IPv6 game connection could not be captured. Saved files are kept.')
+                    elif 'truncated_ipv4' in event.get('errors', []):
+                        detail.set('Network capture returned an incomplete packet. Files and diagnostics are kept.')
                 elif state=='warning':
                     messages={'capture_limit_near':'Capture nearing its limit. Close WoW soon to finish this session.',
                               'capture_disk_low':'Disk space is running low. Close WoW soon to save this session.',
@@ -205,6 +255,8 @@ def start(*,smoke_test=False):
                              'network_wait':'Capture resumes automatically when your network is ready. Open WoW after Ready appears.'}
                     detail.set(details.get(state,''))
         except queue.Empty:pass
+        folder_button.state(['!disabled'] if not closing and not setting_up and pending_root is None and
+                            (not running or phase in ('waiting','network_wait')) else ['disabled'])
         theme.fit_content(root,panel)
         root.after(150,poll)
     def close():

@@ -3,7 +3,7 @@ Discord : https://discord.gg/P9RWZQBQkZ
 
 WoW Retail packet capture for Windows. Detects the network interface and saves PKT files for [WowPacketParser](https://github.com/TrinityCore/WowPacketParser).
 
-**Beta: Retail 12.1.5 builds 70575, 70688 and 70783, Windows x64, IPv4.**
+**Retail 12.1.5 builds 70575, 70688, 70783 and 70961, Windows x64, IPv4.**
 
 ## Use
 
@@ -18,7 +18,13 @@ The EXE runs without Python or an account. Captures stay on your PC.
 The sniffer captures and saves PKTs. Parse saved files separately with WPP;
 the sniffer does not include, install or run the parser.
 
-PKTs are saved in `%LOCALAPPDATA%\HXARK\Sniffer\dumps`. Keep recovery files and session keys private.
+Use **Change folder** before opening WoW to choose a drive or the folder beside
+the EXE. The sniffer remembers your choice and stores both captures and recovery
+data there. Each new session has its own folder under `dumps`; **Open captures**
+opens that collection. Existing files stay in their original location.
+
+The default folder is `%LOCALAPPDATA%\HXARK\Sniffer`. Private recovery data stays
+under `captures`. Keep recovery files and session keys private.
 
 ## Build
 
@@ -58,7 +64,7 @@ without session keys, network addresses or account details. Keep it with the
 PKT for quality checks. Standard WowPacketParser reads the PKT directly and
 does not need the receipt.
 
-Location filenames are recognized for all three supported builds.
+Location filenames are recognized for all supported builds.
 
 The receipt includes final capture-driver drop counts when available. Unavailable
 counters stay unknown. Detected IPv6 game connections are reported as unsupported;

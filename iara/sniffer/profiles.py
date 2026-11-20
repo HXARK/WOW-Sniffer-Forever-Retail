@@ -35,6 +35,8 @@ class BuildProfile:
 # validated locally on 2026-10-31. The 70575 profile remains independent.
 # 70783: session layout, control opcodes and three complete authenticated
 # connections validated locally on 2026-11-04.
+# 70961: session layout, control opcodes and four complete authenticated
+# connections validated locally on 2026-11-20.
 PROFILES = {
     69875: BuildProfile(69875, '12.1.0.69875', None, 0x4c000e, 0x4c000d,
                         'reference_static_69875'),
@@ -53,6 +55,11 @@ PROFILES = {
                         0x4c000e, 0x4c000d, 'live_70783_authenticated_sessions_20261104',
                         live_verified=True, key_locator_verified=True, control_opcodes_verified=True,
                         layout=SessionLayout(0x4a51818,0x40f9ac8)),
+    70961: BuildProfile(70961, '12.1.5.70961',
+                        '75eaa7d66a4b02019d120cd9de4f6ed441a137a3289d49db95610c0349b4a11c',
+                        0x4c000e, 0x4c000d, 'live_70961_authenticated_sessions_20261120',
+                        live_verified=True, key_locator_verified=True, control_opcodes_verified=True,
+                        layout=SessionLayout(0x4a47768,0x40eecb8)),
 }
 
 

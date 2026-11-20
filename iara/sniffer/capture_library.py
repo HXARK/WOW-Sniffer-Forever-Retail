@@ -83,7 +83,7 @@ def describe_capture(source):
                 raise ValueError('invalid_capture_record')
             stream.seek(offset + 20 + extra)
             opcode = struct.unpack('<I', stream.read(4))[0]
-            if direction == 0x47534d53 and build in (70575, 70688, 70783):
+            if direction == 0x47534d53 and build in (70575, 70688, 70783, 70961):
                 location = None
                 if opcode == 0x4501f0:  # SMSG_INIT_WORLD_STATES
                     if length - 4 < 16:
@@ -160,7 +160,7 @@ def publish_capture(source, dumps, session, sequence, expected_sha256, *, remove
     else:
         if shutil.disk_usage(dumps).free < before.st_size + 64*1024**2:
             raise ValueError('insufficient_export_disk')
-        staging = safe_store(dumps.parent/'private-exports')
+        staging = dumps
         fd, temporary_name = tempfile.mkstemp(prefix='pkt-', suffix='.partial', dir=staging)
         temporary = Path(temporary_name)
         try:
@@ -240,7 +240,7 @@ def migrate_legacy(captures, dumps):
                 digest = item.get('receipt', {}).get('pkt_sha256')
                 if previous.get(name, {}).get('sha256') == digest and digest:
                     continue
-                published = publish_capture(session/name, dumps, session.name, int(name[6:9]), digest)
+                published = publish_capture(session/name, dumps/session.name, session.name, int(name[6:9]), digest)
                 previous[name] = published
                 changed = True
                 result['exported'] += 1

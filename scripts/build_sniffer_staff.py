@@ -22,7 +22,7 @@ def main(argv=None):
     layout=parser.parse_args(argv).layout
     if os.name!='nt':raise ValueError('windows_builder_required')
     if version('pyinstaller')!='6.22.3':raise ValueError('unreviewed_builder_version')
-    if not re.fullmatch(r'\d+\.\d+\.\d+-beta',APP_VERSION):raise ValueError('invalid_release_version')
+    if not re.fullmatch(r'\d+\.\d+\.\d+',APP_VERSION):raise ValueError('invalid_release_version')
     destination=ROOT/'dist/sniffer-staff'/APP_VERSION.split('-')[0]/layout
     work=ROOT/'.iara/sniffer-release/build'/APP_VERSION/layout
     assets=ROOT/'.iara/sniffer-release/assets'/APP_VERSION
@@ -68,7 +68,7 @@ def main(argv=None):
     sources=[ROOT/'scripts'/name for name in ('sniffer_staff.py','sniffer_record.py','sniffer_capture_start.py',
         'sniffer_session_snapshot.py','sniffer_decode_session.py','sniffer_start_loopback_probe.py','sniffer_auto_probe.py')]
     sources+=list((ROOT/'iara/sniffer').glob('*.py'))+[ROOT/'iara/capture_inspector.py']
-    manifest={'version':APP_VERSION,'channel':'beta','layout':layout,'python':sys.version.split()[0],
+    manifest={'version':APP_VERSION,'channel':'stable','layout':layout,'python':sys.version.split()[0],
         'pyinstaller':version('pyinstaller'),'cryptography':version('cryptography'),'certifi':version('certifi'),
         'sources':{str(p.relative_to(ROOT)).replace('\\','/'):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
         'resources':{n:hashlib.sha256(p.read_bytes()).hexdigest() for n,p in resources.items()},

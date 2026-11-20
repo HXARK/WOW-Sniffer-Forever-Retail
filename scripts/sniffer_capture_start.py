@@ -17,7 +17,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from iara.sniffer.capture_gate import CaptureGate
-from iara.sniffer.pcap import _read, decode_tcp
+from iara.sniffer.pcap import _read, decode_tcp, packet_lengths
 from iara.sniffer.windows_inventory import find_process, tcp_rows, adapter_addresses, fixed_version
 from iara.sniffer.profiles import select_profile
 from iara.sniffer.capture_control import SignalPipe, capture_statistics
@@ -120,7 +120,12 @@ def run_capture(output, *, interface, local, servers, owner, seconds=300,
                 if count > max_packets or size > max_bytes:
                     raise ValueError('capture_limit')
                 frame = _read(process.stdout, cap)
-                packet = replace(decode_tcp(frame, link, endian), timestamp_ns=sec*10**9+fraction*(10**9//precision))
+                try:
+                    packet = replace(decode_tcp(frame, link, endian), timestamp_ns=sec*10**9+fraction*(10**9//precision))
+                except ValueError:
+                    enqueue(('packet_error_details', dict(packet_lengths(frame, link), record_captured_bytes=cap,
+                                                          record_original_bytes=orig, snap_length=snap)))
+                    raise
                 enqueue(('packet', (packet, raw+frame)))
         except Exception as exc:
             safe = {'capture_limit','truncated_pcap','truncated_or_invalid_record',
@@ -202,6 +207,8 @@ def run_capture(output, *, interface, local, servers, owner, seconds=300,
                     persist(gate.feed(packet, raw, time.monotonic()))
                 elif kind == 'error':
                     raise ValueError(value)
+                elif kind == 'packet_error_details':
+                    receipt['packet_error_details'] = value
                 elif kind == 'eof':
                     if process.wait(timeout=5) != 0 and not requested_stop:
                         raise ValueError('capture_process_failed')

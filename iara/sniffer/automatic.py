@@ -254,6 +254,7 @@ def run_session(wow, captures, stop, notify=lambda value: None, *,
         raise ValueError('insufficient_capture_disk')
     output = captures / (datetime.now().strftime('%Y%m%d-%H%M%S') + '-' + uuid.uuid4().hex[:8])
     output.mkdir()
+    session_dumps = Path(dumps)/output.name if dumps is not None else None
     halt = threading.Event()
     workers, folders, ready, errors, receipts = [], [], set(), [], {}
     progress = {}
@@ -394,7 +395,7 @@ def run_session(wow, captures, stop, notify=lambda value: None, *,
         emit('saving')
         secrets = archive.paths if 'archive' in locals() else []
         try:
-            options = {'dumps': dumps} if dumps is not None else {}
+            options = {'dumps': session_dumps} if session_dumps is not None else {}
             if context is not None:options['metadata'] = context
             results = export(output, folders, secrets, process_exited=reason == 'process_exited', **options)
         except Exception:
@@ -455,10 +456,14 @@ def run_session(wow, captures, stop, notify=lambda value: None, *,
                   'metadata_recorded': context is not None,
                   'locale_source': context.get('locale_source') if context else None,
                   'retry_before_game': retry_before_game}
-        if dumps is not None:
+        if session_dumps is not None:
+            result['session_folder'] = output.name
             from .capture_quality import write_session_metadata
             try:
-                write_session_metadata(dumps, result, observation, context)
+                if results:
+                    write_session_metadata(session_dumps, result, observation, context)
+                else:
+                    result['quality_metadata_complete'] = True
             except (OSError, ValueError):
                 result['quality_metadata_complete'] = False
         with (output / 'result.json').open('x') as f:

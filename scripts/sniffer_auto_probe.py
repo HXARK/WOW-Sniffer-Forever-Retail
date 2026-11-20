@@ -94,7 +94,8 @@ def run(root, *, initial_auth=False, changed_address=False):
         raise ValueError('automatic_loopback_failed')
     if result['capture_stats_status']!='complete' or result['capture_dropped_packets']!=0:
         raise ValueError('automatic_capture_statistics_failed')
-    pkts=list((root/'dumps').glob('*.pkt'))
+    session_dumps=root/'dumps'/result['session_folder']
+    pkts=list(session_dumps.glob('*.pkt'))
     if len(pkts)!=1:raise ValueError('unexpected_capture_count')
     proof=inspect_file(pkts[0])
     if not proof['complete'] or proof['records']!=6:raise ValueError('synthetic_pkt_mismatch')
@@ -111,7 +112,8 @@ def run(root, *, initial_auth=False, changed_address=False):
             quality['pktSha256']!=hashlib.sha256(pkts[0].read_bytes()).hexdigest() or
             quality['pktRecords']!=proof['records'] or quality['sessionComplete'] is not True):
         raise ValueError('capture_quality_receipt_mismatch')
-    if list((root/'captures').glob('*/*.pkt')) or set((root/'dumps').iterdir())!={pkts[0],metadata}:
+    if (list((root/'captures').glob('*/*.pkt')) or set(session_dumps.iterdir())!={pkts[0],metadata}
+            or set((root/'dumps').iterdir())!={session_dumps}):
         raise ValueError('capture_library_not_separated')
     proof={'automatic_supervisor':True,'source':'synthetic_loopback','no_prepare_or_stop_click':True,
            'authentication_path':'initial' if initial_auth else 'continued',

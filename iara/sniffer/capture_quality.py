@@ -92,7 +92,7 @@ def write_session_metadata(dumps, session, observation, context):
                 if _regular(target).st_size != len(data) or target.read_bytes() != data:
                     raise ValueError('quality_receipt_collision')
             else:
-                staging = safe_store(dumps.parent / 'private-exports')
+                staging = dumps
                 fd, temp = tempfile.mkstemp(prefix='receipt-', suffix='.tmp', dir=staging)
                 try:
                     with os.fdopen(fd, 'wb') as stream:

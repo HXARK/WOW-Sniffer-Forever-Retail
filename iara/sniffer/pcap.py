@@ -20,6 +20,31 @@ class TCPSegment:
     timestamp_ns: int = 0
 
 
+def packet_lengths(packet, link_type):
+    """Header lengths only; never include addresses, ports or packet contents."""
+    details = {'link_type':link_type, 'frame_bytes':len(packet)}
+    offset = 0
+    if link_type == 0:
+        offset = 4
+    elif link_type == 1:
+        if len(packet) < 14:return details
+        offset = 14
+        protocol = int.from_bytes(packet[12:14], 'big')
+        for _ in range(2):
+            if protocol not in (0x8100, 0x88a8):break
+            if len(packet) < offset+4:return details
+            protocol = int.from_bytes(packet[offset+2:offset+4], 'big')
+            offset += 4
+        if protocol != 0x800:return details
+    elif link_type != 101:
+        return details
+    if len(packet)-offset >= 20 and packet[offset] >> 4 == 4:
+        details.update(ipv4_available_bytes=len(packet)-offset,
+                       ipv4_header_bytes=(packet[offset]&15)*4,
+                       ipv4_total_bytes=int.from_bytes(packet[offset+2:offset+4], 'big'))
+    return details
+
+
 def decode_tcp(packet, link_type, endian='<'):
     if type(packet) is not bytes:
         raise ValueError('invalid_packet')

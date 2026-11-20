@@ -5,4 +5,7 @@ Close WoW to save. Open captures shows your PKTs.
 Capture and metadata recording are automatic. No manual settings are needed.
 
 First run: select Wow.exe if needed. Install capture support with Npcap selected.
-Retail 70575, 70688 and 70783, Windows x64, IPv4. WPP parsing is partial. Keep captures private.
+Change folder: choose where PKTs and recovery data are saved before opening WoW.
+Each session gets its own folder under dumps. Existing files are not moved.
+
+Retail 70575, 70688, 70783 and 70961, Windows x64, IPv4. WPP parsing is partial. Keep captures private.

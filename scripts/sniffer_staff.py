@@ -36,7 +36,7 @@ def main(argv=None):
     d.add_argument('--flow-index',type=int,default=0)
     a=p.parse_args(argv)
     try:
-        if a.command=='version':result={'application':'HXARK Sniffer','version':APP_VERSION,'channel':'beta'}
+        if a.command=='version':result={'application':'HXARK Sniffer','version':APP_VERSION,'channel':'stable'}
         elif a.command=='interfaces-check':
             from iara.sniffer.automatic import capture_adapters
             result={'capture_addresses':len(capture_adapters()),'capture_started':False}
