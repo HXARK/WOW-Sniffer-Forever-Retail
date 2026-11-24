@@ -1,6 +1,7 @@
 HXARK Sniffer
 
 Open the sniffer. Wait for Ready. Open WoW and play.
+Retail and Forever are detected in the same Battle.net folder. Open one at a time.
 Close WoW to save. Open captures shows your PKTs.
 Capture and metadata recording are automatic. No manual settings are needed.
 
@@ -8,4 +9,5 @@ First run: select Wow.exe if needed. Install capture support with Npcap selected
 Change folder: choose where PKTs and recovery data are saved before opening WoW.
 Each session gets its own folder under dumps. Existing files are not moved.
 
-Retail 70575, 70688, 70783 and 70961, Windows x64, IPv4. WPP parsing is partial. Keep captures private.
+Retail 70575, 70688, 70783 and 70961. Forever 71037. Windows x64, IPv4.
+WPP parsing depends on support for the captured build. Keep captures private.

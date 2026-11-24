@@ -7,6 +7,15 @@ import tempfile
 from .updates import safe_store, read_bounded
 
 
+def candidates(wow):
+    """Find Retail and Forever beside the selected installation."""
+    wow = Path(wow)
+    paths = [wow]
+    if wow.parent.name.lower() in ('_retail_', '_forever_'):
+        paths.extend(wow.parent.parent/name/'Wow.exe' for name in ('_retail_', '_forever_'))
+    return tuple(dict.fromkeys(path.resolve() for path in paths if path.is_file()))
+
+
 def _validated(value):
     if type(value) is not str or not value or len(value) > 4096:
         raise ValueError('invalid_wow_location')

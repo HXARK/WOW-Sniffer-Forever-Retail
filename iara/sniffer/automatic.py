@@ -30,7 +30,11 @@ MAX_ADAPTERS = 8
 
 class ProcessOwner:
     def __init__(self, wow):
-        self.wow = Path(wow).resolve(strict=True)
+        paths = wow if isinstance(wow, (tuple, list)) else (wow,)
+        if not 1 <= len(paths) <= 8:
+            raise ValueError('invalid_client_selection')
+        self.clients = tuple(dict.fromkeys(Path(path).resolve(strict=True) for path in paths))
+        self.wow = self.clients[0]
         self.k = _apis()
         self.k.GetExitCodeProcess.argtypes = [PTR, C.POINTER(U32)]
         self.k.GetExitCodeProcess.restype = C.c_int
@@ -50,12 +54,18 @@ class ProcessOwner:
             if time.monotonic() < self.next_discovery:
                 return
             self.next_discovery = time.monotonic() + .25
-            try:
-                pid = find_process(self.wow)
-            except ValueError as exc:
-                if str(exc) == 'wow_process_not_unique_or_not_running':
-                    return
-                raise
+            found = []
+            for path in self.clients:
+                try:
+                    found.append((path, find_process(path)))
+                except ValueError as exc:
+                    if str(exc) != 'wow_process_not_unique_or_not_running':
+                        raise
+            if not found:
+                return
+            if len(found) != 1:
+                raise ValueError('multiple_wow_clients')
+            self.wow, pid = found[0]
             handle = self.k.OpenProcess(0x1000, False, pid)
             if not handle:
                 return  # It may have closed between discovery and OpenProcess.
@@ -234,15 +244,23 @@ def run_session(wow, captures, stop, notify=lambda value: None, *,
     from scripts.sniffer_capture_start import run_capture
     from .updates import update_lock, safe_store, default_store
     capture = capture or run_capture
-    wow = Path(wow).resolve(strict=True)
-    stat = wow.stat()
-    observation = inspect(wow)
-    if not observation['capture_allowed']:
+    paths = wow if isinstance(wow, (tuple, list)) else (wow,)
+    if not 1 <= len(paths) <= 8:
+        raise ValueError('invalid_client_selection')
+    clients = {}
+    for path in paths:
+        path = Path(path).resolve(strict=True)
+        stat = path.stat()
+        observation = inspect(path)
+        if (path.stat().st_size, path.stat().st_mtime_ns) != (stat.st_size, stat.st_mtime_ns):
+            raise ValueError('client_changed_during_capture')
+        clients[path] = (observation, {'stat': (stat.st_size, stat.st_mtime_ns),
+                        'build': observation['build'], 'sha256': observation['image_sha256']})
+    if not any(value[0]['capture_allowed'] for value in clients.values()):
         raise ValueError('unsupported_build')
-    if (wow.stat().st_size, wow.stat().st_mtime_ns) != (stat.st_size, stat.st_mtime_ns):
-        raise ValueError('client_changed_during_capture')
-    verified = {'stat': (stat.st_size, stat.st_mtime_ns), 'build': observation['build'],
-                'sha256': observation['image_sha256']}
+    wow = next(iter(clients))
+    observation, verified = clients[wow]
+    archive = None
     # Use one collector per interface, including interfaces with multiple IPs.
     adapters = list({interface.lower(): (local, interface)
                      for local, interface in adapters_factory()}.values())
@@ -297,9 +315,8 @@ def run_session(wow, captures, stop, notify=lambda value: None, *,
             except (OSError, ValueError, AttributeError):
                 pass
     with update_lock(safe_store(default_store())):
-        owner = owner_factory(wow)
+        owner = owner_factory(wow if len(clients) == 1 else tuple(clients))
         try:
-            archive = archive_factory(wow, output, verified)
             for index, (local, interface) in enumerate(adapters):
                 folder = output / f'private-adapter-{index+1:02d}'
                 folders.append(folder)
@@ -315,6 +332,11 @@ def run_session(wow, captures, stop, notify=lambda value: None, *,
                 now = time.monotonic()
                 if owner.pid is not None and session_started is None:
                     session_started = now
+                    wow = getattr(owner, 'wow', wow)
+                    observation, verified = clients[wow]
+                    if not observation['capture_allowed']:
+                        raise ValueError('unsupported_build')
+                    archive = archive_factory(wow, output, verified)
                 if owner.pid is not None and not owner.exited and context is None:
                     context = capture_context(wow)
                 owned_connections.update(owner.rows)
@@ -334,7 +356,7 @@ def run_session(wow, captures, stop, notify=lambda value: None, *,
                         v.get('tracked_connections', 0) >= 25 for v in progress.values())
                 if not owner.exited:
                     if unsupported_connections:warn('unsupported_game_connection')
-                    if (near_limit or len(archive.paths) >= 25 or
+                    if (near_limit or (archive is not None and len(archive.paths) >= 25) or
                         (session_started is not None and now-session_started >= seconds*.9)):
                         warn('capture_limit_near')
                 if owner.exited:
@@ -377,7 +399,7 @@ def run_session(wow, captures, stop, notify=lambda value: None, *,
             reason = 'supervisor_error'
             safe = {'client_changed_during_capture', 'process_identity_changed', 'session_archive_limit',
                     'readonly_process_access_denied', 'capture_not_ready', 'insufficient_capture_disk',
-                    'owned_connection_limit'}
+                    'owned_connection_limit', 'multiple_wow_clients', 'unsupported_build'}
             errors.append({'code': str(exc) if str(exc) in safe else 'automatic_capture_failed'})
         finally:
             halt.set()
@@ -393,7 +415,7 @@ def run_session(wow, captures, stop, notify=lambda value: None, *,
         if any(t.is_alive() for t in workers):
             raise ValueError('capture_shutdown_incomplete')
         emit('saving')
-        secrets = archive.paths if 'archive' in locals() else []
+        secrets = archive.paths if archive is not None else []
         try:
             options = {'dumps': session_dumps} if session_dumps is not None else {}
             if context is not None:options['metadata'] = context

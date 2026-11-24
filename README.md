@@ -1,9 +1,11 @@
 # HXARK Sniffer                                     
 Discord : https://discord.gg/P9RWZQBQkZ
 
-WoW Retail packet capture for Windows. Detects the network interface and saves PKT files for [WowPacketParser](https://github.com/TrinityCore/WowPacketParser).
+WoW Retail and Forever packet capture for Windows. Detects the game and network interface, then saves PKT files for [WowPacketParser](https://github.com/TrinityCore/WowPacketParser).
 
 **Retail 12.1.5 builds 70575, 70688, 70783 and 70961, Windows x64, IPv4.**
+
+**Forever 1.60.1 build 71037, Windows x64, IPv4.**
 
 ## Use
 
@@ -12,6 +14,9 @@ WoW Retail packet capture for Windows. Detects the network interface and saves P
 3. Close WoW. PKTs save automatically. Click **Open captures** to find them.
 
 You can leave the sniffer open between sessions. Select `Wow.exe` once if it is not found. If capture support is missing, use the setup button and keep Npcap selected in the Wireshark installer.
+
+Retail and Forever are detected in the same Battle.net installation folder.
+Open one game client at a time.
 
 The EXE runs without Python or an account. Captures stay on your PC.
 
@@ -64,7 +69,9 @@ without session keys, network addresses or account details. Keep it with the
 PKT for quality checks. Standard WowPacketParser reads the PKT directly and
 does not need the receipt.
 
-Location filenames are recognized for all supported builds.
+Retail captures use location filenames when recognized. Forever captures use
+the build and session timestamp. Parsing Forever packets requires WPP support
+for build 71037; the PKT format stays the same.
 
 The receipt includes final capture-driver drop counts when available. Unavailable
 counters stay unknown. Detected IPv6 game connections are reported as unsupported;

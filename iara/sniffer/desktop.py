@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk,filedialog
 from .updates import apply,fetch,default_store,safe_store
 from .trust import PUBLIC_KEY,CATALOG_URL,APP_VERSION
-from .location import load as load_location, save as save_location
+from .location import load as load_location, save as save_location, candidates
 from . import theme
 from . import storage
 from .capture_files import capture_destination
@@ -75,7 +75,8 @@ def start(*,smoke_test=False):
         except (OSError,ValueError):
             status.set('Capture folder unavailable')
             detail.set('Connect your drive or choose another folder with Change folder.');return
-        if not wow.is_file():
+        clients=candidates(wow)
+        if not clients:
             status.set('WoW not found');detail.set('Select Wow.exe once.');recovery.pack(side='left');return
         recovery.pack_forget();running=True;stop.clear()
         def work():
@@ -88,7 +89,7 @@ def start(*,smoke_test=False):
                 try:
                     if CATALOG_URL:apply(fetch(CATALOG_URL),default_store(),PUBLIC_KEY)
                 except Exception:pass  # The signed installed profile remains usable offline.
-                supervise(wow,captures,stop,events.put,dumps=dumps)
+                supervise(clients,captures,stop,events.put,dumps=dumps)
             except Exception as exc:
                 messages={
                     'unsupported_build':'This WoW build needs a compatibility update.',
@@ -157,11 +158,11 @@ def start(*,smoke_test=False):
         if running:
             # The game may have opened while the folder dialog was visible.
             from .windows_inventory import find_process
-            try:find_process(wow)
-            except ValueError:pass
-            except OSError:
-                result_text.set('Close WoW before changing the capture folder.');return
-            else:
+            for path in candidates(wow):
+                try:find_process(path)
+                except ValueError as exc:
+                    if str(exc)=='wow_process_not_unique_or_not_running':continue
+                except OSError:pass
                 result_text.set('Close WoW before changing the capture folder.');return
             if phase not in ('waiting','network_wait'):
                 result_text.set('Close WoW before changing the capture folder.');return
@@ -231,6 +232,10 @@ def start(*,smoke_test=False):
                         detail.set('An IPv6 game connection could not be captured. Saved files are kept.')
                     elif 'truncated_ipv4' in event.get('errors', []):
                         detail.set('Network capture returned an incomplete packet. Files and diagnostics are kept.')
+                    elif 'unsupported_build' in event.get('errors', []):
+                        detail.set('This WoW build needs a compatibility update.')
+                    elif 'multiple_wow_clients' in event.get('errors', []):
+                        detail.set('Open only one WoW client at a time, then restart the sniffer.')
                 elif state=='warning':
                     messages={'capture_limit_near':'Capture nearing its limit. Close WoW soon to finish this session.',
                               'capture_disk_low':'Disk space is running low. Close WoW soon to save this session.',

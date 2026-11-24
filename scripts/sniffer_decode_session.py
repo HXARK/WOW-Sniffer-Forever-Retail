@@ -44,7 +44,8 @@ def decode(source,destination,protected,flows,flow_index,*,process_exited=False,
         if not 24<=before[2]<=max_bytes:raise ValueError('input_limit')
         pcap_hash=hashlib.file_digest(f,'sha256').hexdigest()
         f.seek(0)
-        key,boundaries=inspect_handshake(f,client=flow['client'],server=flow['server'],session=session)
+        key,boundaries=inspect_handshake(f,client=flow['client'],server=flow['server'],session=session,
+                                       opcodes=profile.handshake)
         f.seek(0)
         def validate(partial,records):
             nonlocal independent

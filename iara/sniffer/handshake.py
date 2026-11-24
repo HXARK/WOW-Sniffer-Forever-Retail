@@ -1,4 +1,4 @@
-"""Retail 70575 initial and continued-session handshakes.
+"""Initial and continued-session handshakes for a selected client profile.
 
 Protocol messages set the encryption boundary. Unknown layouts are rejected.
 Realm tickets remain opaque and are not used for key derivation.
@@ -8,12 +8,13 @@ from .pcap import iter_tcp
 from .tcp import TCPStream
 from .world import WorldFramer
 from .session_keys import derive_encryption
+from .profiles import HandshakeOpcodes
 
 
 MAX_REALM_TICKET = 16 * 1024
 
 
-def client_challenge(body):
+def client_challenge(body, *, opcodes=HandshakeOpcodes()):
     """Read a structurally validated challenge; GCM validates the key later.
 
     Realm login: opcode, DoS u64, three u32 realm fields, 32-byte challenge,
@@ -26,16 +27,16 @@ def client_challenge(body):
     if type(body) is not bytes or len(body) < 4:
         raise ValueError('unsupported_authentication_layout')
     opcode = struct.unpack_from('<I', body)[0]
-    if opcode == 0x440003 and len(body) == 84:
+    if opcode == opcodes.auth_continued and len(body) == 84:
         return body[12:44]
-    if opcode == 0x440001 and 85 <= len(body) <= 85 + MAX_REALM_TICKET:
+    if opcode == opcodes.auth_session and 85 <= len(body) <= 85 + MAX_REALM_TICKET:
         ticket_size = struct.unpack_from('<I', body, 81)[0]
         if body[80] in (0, 0x80) and ticket_size == len(body) - 85:
             return body[24:56]
     raise ValueError('unsupported_authentication_layout')
 
 
-def validate_initial_frames(client, server, session):
+def validate_initial_frames(client, server, session, *, opcodes=HandshakeOpcodes()):
     if len(client)!=2 or len(server)!=2:
         raise ValueError('handshake_incomplete')
     for tag,body in list(client)+list(server):
@@ -43,17 +44,17 @@ def validate_initial_frames(client, server, session):
             raise ValueError('unexpected_handshake_frame')
     c,a=client[0][1],client[1][1]
     s,e=server[0][1],server[1][1]
-    challenge = client_challenge(c)
-    if len(s)!=69 or struct.unpack_from('<I',s)[0]!=0x4c0000:
+    challenge = client_challenge(c, opcodes=opcodes)
+    if len(s)!=69 or struct.unpack_from('<I',s)[0]!=opcodes.challenge:
         raise ValueError('unsupported_challenge_layout')
-    if len(e)!=73 or struct.unpack_from('<I',e)[0]!=0x4c0004 or e[-1]!=0x80:
+    if len(e)!=73 or struct.unpack_from('<I',e)[0]!=opcodes.enable or e[-1]!=0x80:
         raise ValueError('encryption_enable_not_confirmed')
-    if a!=struct.pack('<I',0x440005):
+    if a!=struct.pack('<I',opcodes.ack):
         raise ValueError('encryption_ack_not_confirmed')
     return derive_encryption(session,challenge,s[36:68])
 
 
-def inspect_handshake(source, *, client, server, session):
+def inspect_handshake(source, *, client, server, session, opcodes=HandshakeOpcodes()):
     client,server=tuple(client),tuple(server)
     streams={};starts={};frames={d:[] for d in ('client','server')}
     framers={d:WorldFramer(d) for d in frames}
@@ -73,6 +74,6 @@ def inspect_handshake(source, *, client, server, session):
             data=streams[direction].feed((packet.sequence+bool(packet.flags&2))%2**32,packet.payload)
             frames[direction].extend(framers[direction].feed(data)[:2-len(frames[direction])])
         if all(len(x)==2 for x in frames.values()):
-            key=validate_initial_frames(frames['client'],frames['server'],session)
+            key=validate_initial_frames(frames['client'],frames['server'],session,opcodes=opcodes)
             return key, {'client':2,'server':2}
     raise ValueError('handshake_incomplete')

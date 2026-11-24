@@ -16,6 +16,15 @@ DEFAULT_LAYOUT=SessionLayout(0x4a50750,0x40f8d00)
 
 
 @dataclass(frozen=True)
+class HandshakeOpcodes:
+    auth_session: int = 0x440001
+    auth_continued: int = 0x440003
+    challenge: int = 0x4c0000
+    enable: int = 0x4c0004
+    ack: int = 0x440005
+
+
+@dataclass(frozen=True)
 class BuildProfile:
     build: int
     version: str
@@ -27,6 +36,7 @@ class BuildProfile:
     key_locator_verified: bool = False
     control_opcodes_verified: bool = False
     layout: SessionLayout | None = None
+    handshake: HandshakeOpcodes = HandshakeOpcodes()
 
 
 # 69875 control opcodes: static analysis only.
@@ -37,6 +47,8 @@ class BuildProfile:
 # connections validated locally on 2026-11-04.
 # 70961: session layout, control opcodes and four complete authenticated
 # connections validated locally on 2026-11-20.
+# Forever 71037: handshake, session layout and four complete authenticated
+# connections validated locally on 2026-11-24.
 PROFILES = {
     69875: BuildProfile(69875, '12.1.0.69875', None, 0x4c000e, 0x4c000d,
                         'reference_static_69875'),
@@ -60,6 +72,13 @@ PROFILES = {
                         0x4c000e, 0x4c000d, 'live_70961_authenticated_sessions_20261120',
                         live_verified=True, key_locator_verified=True, control_opcodes_verified=True,
                         layout=SessionLayout(0x4a47768,0x40eecb8)),
+    71037: BuildProfile(71037, '1.60.1.71037',
+                        '05ab223083d4fd5ff48c2d359cff512afc31e7b1bf6b3eb6f1559b2d69c9e386',
+                        0x4e000e, 0x4e000d, 'live_71037_authenticated_sessions_20261124',
+                        live_verified=True, key_locator_verified=True, control_opcodes_verified=True,
+                        layout=SessionLayout(0x4bfe828,0x4276ac0),
+                        handshake=HandshakeOpcodes(auth_session=0x460001, auth_continued=0x460003,
+                            challenge=0x4e0000, enable=0x4e0004, ack=0x460005)),
 }
 
 
