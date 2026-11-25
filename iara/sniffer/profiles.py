@@ -79,6 +79,13 @@ PROFILES = {
                         layout=SessionLayout(0x4bfe828,0x4276ac0),
                         handshake=HandshakeOpcodes(auth_session=0x460001, auth_continued=0x460003,
                             challenge=0x4e0000, enable=0x4e0004, ack=0x460005)),
+    71091: BuildProfile(71091, '1.60.1.71091',
+                        '6d523746a0d4ba357135645d3c718beebfd613be9ada10f7a1dc49033ffedbee',
+                        0x4e000e, 0x4e000d, 'live_71091_authenticated_sessions_20261125',
+                        live_verified=True, key_locator_verified=True, control_opcodes_verified=True,
+                        layout=SessionLayout(0x4a6d9f8,0x40e4b00),
+                        handshake=HandshakeOpcodes(auth_session=0x460001, auth_continued=0x460003,
+                            challenge=0x4e0000, enable=0x4e0004, ack=0x460005)),
 }
 
 

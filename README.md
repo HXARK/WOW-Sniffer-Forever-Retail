@@ -5,7 +5,7 @@ WoW Retail and Forever packet capture for Windows. Detects the game and network 
 
 **Retail 12.1.5 builds 70575, 70688, 70783 and 70961, Windows x64, IPv4.**
 
-**Forever 1.60.1 build 71037, Windows x64, IPv4.**
+**Forever 1.60.1 builds 71037 and 71091, Windows x64, IPv4.**
 
 ## Use
 
@@ -71,7 +71,7 @@ does not need the receipt.
 
 Retail captures use location filenames when recognized. Forever captures use
 the build and session timestamp. Parsing Forever packets requires WPP support
-for build 71037; the PKT format stays the same.
+for the captured build; the PKT format stays the same.
 
 The receipt includes final capture-driver drop counts when available. Unavailable
 counters stay unknown. Detected IPv6 game connections are reported as unsupported;
