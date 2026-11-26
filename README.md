@@ -5,7 +5,7 @@ WoW Retail and Forever packet capture for Windows. Detects the game and network 
 
 **Retail 12.1.5 builds 70575, 70688, 70783 and 70961, Windows x64, IPv4.**
 
-**Forever 1.60.1 builds 71037 and 71091, Windows x64, IPv4.**
+**Forever 1.60.1 builds 71037, 71091 and 71139, Windows x64, IPv4.**
 
 ## Use
 
