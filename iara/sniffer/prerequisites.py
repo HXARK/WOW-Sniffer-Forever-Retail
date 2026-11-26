@@ -9,7 +9,8 @@ import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
 
-INSTALLER_URL = 'https://2.na.dl.wireshark.org/win64/Wireshark-4.6.9-x64.exe'
+INSTALLER_URL = 'https://www.wireshark.org/download/win64/all-versions/Wireshark-4.6.9-x64.exe'
+INSTALLER_MIRROR_URL = 'https://2.na.dl.wireshark.org/win64/all-versions/Wireshark-4.6.9-x64.exe'
 INSTALLER_NAME = 'Wireshark-4.6.9-x64.exe'
 INSTALLER_SIZE = 97931232
 INSTALLER_SHA256 = 'bf9b5ce8a89f244c376a9b1a946276eaa06463dde3e33069a34d7f102f5878cf'
@@ -18,8 +19,11 @@ INSTALLER_SHA256 = 'bf9b5ce8a89f244c376a9b1a946276eaa06463dde3e33069a34d7f102f58
 
 def setup_failure(exc):
     """Map exceptions to fixed codes to avoid leaking proxy credentials."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return 'installer_unavailable' if exc.code in (404,410) else 'download_failed'
     if isinstance(exc, urllib.error.URLError):
         exc = exc.reason
+        if not isinstance(exc, BaseException):return 'network_or_file_unavailable'
     if isinstance(exc, ssl.SSLCertVerificationError):
         return 'certificate_verification_failed'
     if isinstance(exc, ssl.SSLError):return 'secure_connection_failed'
@@ -89,6 +93,18 @@ class OfficialRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+def _open_installer(opener, stop):
+    for index, url in enumerate((INSTALLER_URL, INSTALLER_MIRROR_URL)):
+        if stop.is_set():raise ValueError('setup_cancelled')
+        try:
+            return opener.open(url, timeout=15)
+        except urllib.error.HTTPError as exc:
+            if index or exc.code not in (404,408,410,429,500,502,503,504):raise
+            exc.close()
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if index:raise
+
+
 def verify_installer(path):
     path = Path(path)
     if (path.is_symlink() or getattr(path.lstat(),'st_file_attributes',0)&0x400 or
@@ -122,7 +138,7 @@ def download_installer(folder, stop, progress=lambda n:None, *, opener=None):
     try:
         with tempfile.NamedTemporaryFile(dir=folder, suffix='.partial', delete=False) as out:
             temporary = Path(out.name)
-            with opener.open(INSTALLER_URL, timeout=15) as response:
+            with _open_installer(opener, stop) as response:
                 if not approved_url(response.geturl()):
                     raise ValueError('installer_redirect_rejected')
                 size = response.headers.get('Content-Length')

@@ -200,7 +200,16 @@ def start(*,smoke_test=False):
                     setting_up=False
                     if closing:root.destroy();return
                     status.set('Setup cancelled' if event['cancelled'] else 'Setup could not finish')
-                    detail.set('You can retry. No capture has started.')
+                    messages={
+                        'installer_unavailable':'Download unavailable. Retry setup or install Wireshark with Npcap manually.',
+                        'download_failed':'Download failed. Check your connection and retry setup.',
+                        'network_or_file_unavailable':'Check your connection and available disk space, then retry setup.',
+                        'certificate_verification_failed':'Secure download failed. Check the Windows date and certificate settings.',
+                        'setup_access_denied':'Windows denied access. Check folder permissions and retry setup.',
+                        'installer_verification_failed':'The download could not be verified. Retry setup.',
+                        'installer_timeout':'The download timed out. Check your connection and retry setup.',
+                    }
+                    detail.set(messages.get(event['code'],'You can retry. No capture has started.'))
                     if not event['cancelled']:result_text.set('Setup: '+event['code'])
                     setup_button.configure(text='Retry setup',command=install_support);setup_button.pack(anchor='w',pady=(12,0))
                 elif state=='finished':

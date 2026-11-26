@@ -18,7 +18,7 @@ licenses. Wireshark and Npcap are not bundled. Setup downloads and verifies the
 official Wireshark installer; the user completes installation under its terms.
 Wireshark uses the GPL. Npcap has separate licensing.
 
-PKT compatibility was checked against WowPacketParser:
+Retail PKT compatibility was checked against WowPacketParser:
 https://github.com/TrinityCore/WowPacketParser
 No third-party sniffer binary or decompiler output, WPP source or patches, WoW files, real
 captures or session data are included.
